@@ -1,14 +1,14 @@
 {
   "name": "chrome-extensions",
   "private": true,
+  "type": "module",
   "description": "Chromium browser extensions for Microsoft Edge and Chrome.",
   "license": "MIT",
-  "engines": {
-    "node": ">=22"
-  },
+  "packageManager": "bun@1.4.4",
   "scripts": {
-    "test": "node --test \"*/test/*.test.cjs\"",
-    "package": "scripts/package.sh"
+    "test": "bun test --timeout 60000",
+    "package": "bash scripts/package.sh",
+    "release:verify": "bun scripts/release.js --tag v0.0.1 --output artifacts/verification"
   },
   "devDependencies": {
     "playwright": "1.65.1"

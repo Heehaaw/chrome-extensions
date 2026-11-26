@@ -21,25 +21,39 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: lts/*
-          cache: npm
+      - name: Set up Bun
+        # Installs the version pinned in package.json's packageManager field.
+        uses: oven-sh/setup-bun@v2
       - name: Install dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
       - name: Install Chromium for extension tests
-        run: npx playwright install --with-deps chromium
-      - name: Test extensions in Chromium
-        run: npm test
-      - name: Package extensions
-        run: npm run package
+        run: bunx playwright install --with-deps chromium
+      - name: Test extensions and release tooling
+        run: bun run test
+      - name: Package development ZIPs
+        run: bun run package
+      - name: Verify artifact promotion
+        run: bun run release:verify
       # One step per extension: archive: false uploads exactly one file, and the downloaded
       # artifact is the extension ZIP itself rather than a ZIP wrapped in another ZIP.
+      # Release preparation downloads these exact files, so keep the names stable.
       - name: Upload installable Tab Placement ZIP
         uses: actions/upload-artifact@v7
         with:
-          path: artifacts/tab-placement-*.zip
+          path: artifacts/input/tab-placement-0.0.0-dev.zip
           archive: false
           retention-days: 90
           if-no-files-found: error
+      - name: Link to manual release preparation
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          {
+            echo '## Release preparation'
+            echo
+            echo "[Prepare a draft release](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/release.yml)"
+            echo
+            echo 'Choose **Run workflow**, select the branch, then choose patch, minor, major, or custom.'
+            echo
+            echo "Tested commit: [${GITHUB_SHA}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA})"
+          } >> "$GITHUB_STEP_SUMMARY"

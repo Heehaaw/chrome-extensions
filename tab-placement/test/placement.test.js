@@ -5,15 +5,13 @@
 // CHROMIUM_PATH optionally points at a Chromium or Chrome for Testing binary; branded Chrome and
 // Edge ignore --load-extension.
 
-const { test, before, after } = require("node:test");
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const http = require("node:http");
-const os = require("node:os");
-const path = require("node:path");
-const { chromium } = require("playwright");
+import { afterAll, beforeAll, expect, test } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { chromium } from "playwright";
 
-const EXTENSION_DIR = process.env.EXTENSION_DIR || path.resolve(__dirname, "../extension");
+const EXTENSION_DIR = process.env.EXTENSION_DIR || path.resolve(import.meta.dir, "../extension");
 const WINDOW_GRACE_MS = 2000;
 const SETTLE_MS = 400;
 
@@ -22,16 +20,19 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 let server;
 let baseUrl;
 
-before(async () => {
-  server = http.createServer((req, res) => {
-    res.setHeader("content-type", "text/html");
-    res.end(`<title>${req.url.slice(1)}</title>${req.url}`);
+beforeAll(() => {
+  server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    fetch: (req) => {
+      const name = new URL(req.url).pathname.slice(1);
+      return new Response(`<title>${name}</title>${name}`, { headers: { "content-type": "text/html" } });
+    },
   });
-  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  baseUrl = `http://127.0.0.1:${server.address().port}`;
+  baseUrl = `http://127.0.0.1:${server.port}`;
 });
 
-after(() => server.close());
+afterAll(() => server.stop(true));
 
 async function launch(userDataDir, extraArgs = []) {
   const context = await chromium.launchPersistentContext(userDataDir, {
@@ -106,7 +107,7 @@ test("new tab opens right after the current tab", async () => {
     await activate(worker, tabs.b);
     await newForegroundTab(worker, "new");
 
-    assert.deepEqual(await strip(worker), ["a", "b", "new", "c", "d"]);
+    expect(await strip(worker)).toEqual(["a", "b", "new", "c", "d"]);
   } finally {
     await context.close();
   }
@@ -124,7 +125,7 @@ test("new tab joins the current tab's group, in the middle and at the end of the
     await activate(worker, tabs.c);
     await newForegroundTab(worker, "end");
 
-    assert.deepEqual(await strip(worker), ["a", `b@${group}`, `mid@${group}`, `c@${group}`, `end@${group}`, "d"]);
+    expect(await strip(worker)).toEqual(["a", `b@${group}`, `mid@${group}`, `c@${group}`, `end@${group}`, "d"]);
   } finally {
     await context.close();
   }
@@ -140,7 +141,7 @@ test("new tab from a pinned tab opens right after the pinned tabs", async () => 
     await activate(worker, tabs.a);
     await newForegroundTab(worker, "new");
 
-    assert.deepEqual(await strip(worker), ["a", "new", "b", "c"]);
+    expect(await strip(worker)).toEqual(["a", "new", "b", "c"]);
   } finally {
     await context.close();
   }
@@ -156,7 +157,7 @@ test("background tabs stay at the end", async () => {
     await worker.evaluate((url) => chrome.tabs.create({ url, active: false }), `${baseUrl}/bg`);
     await sleep(SETTLE_MS);
 
-    assert.deepEqual(await strip(worker), ["a", "b", "c", "bg"]);
+    expect(await strip(worker)).toEqual(["a", "b", "c", "bg"]);
   } finally {
     await context.close();
   }
@@ -174,7 +175,7 @@ test("reopening the last closed tab restores it at its old position", async () =
     await worker.evaluate(() => chrome.sessions.restore());
     await sleep(SETTLE_MS);
 
-    assert.deepEqual(await strip(worker), ["a", "b", "c", "d"]);
+    expect(await strip(worker)).toEqual(["a", "b", "c", "d"]);
   } finally {
     await context.close();
   }
@@ -203,7 +204,7 @@ test("session restore keeps tab order and groups", async () => {
   try {
     await sleep(6000); // past the startup grace period, in case anything would move late
     const restored = (await strip(second.worker)).map((t) => t.replace(/@\d+$/, "@group"));
-    assert.deepEqual(restored, expected);
+    expect(restored).toEqual(expected);
   } finally {
     await second.context.close();
   }

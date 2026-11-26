@@ -21,14 +21,14 @@ The extension leaves these tabs alone:
 
 ## Install
 
-Download the `tab-placement-<version>.zip` build artifact and load it unpacked, as described in the [repository README](../README.md#install-from-a-build-artifact).
+Download `tab-placement-<version>.zip` from the latest release and load it unpacked, as described in the [repository README](../README.md#install).
 For development, load this folder's `extension/` directory directly.
 
 Turn off other tab-position extensions; two of them moving the same tab will fight.
 
 ## Test
 
-From the repository root, `npm test` runs [the end-to-end tests](test/placement.test.cjs) in a throwaway Chromium profile. They cover placement next to the current tab,
+From the repository root, `bun run test` runs [the end-to-end tests](test/placement.test.js) in a throwaway Chromium profile. They cover placement next to the current tab,
 joining a group in its middle and at its end, pinned tabs, background tabs, "Reopen closed tab", and session restore.
 
 The session-restore test is a regression check only: Playwright's Chromium does not reproduce Edge's restore reordering even with a naive tab mover, so the restore guards are
