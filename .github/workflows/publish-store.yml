@@ -1,0 +1,101 @@
+name: Publish to Chrome Web Store
+
+# Publishing a GitHub release submits its extension ZIPs for store review. Extensions whose
+# store/chrome-web-store.json has no itemId yet are skipped; see doc/chrome-web-store.md.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release tag to submit again (for example, v1.2.3)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chrome-web-store
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      # Exchanged for a short-lived Google access token; no long-lived credentials are stored.
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - name: Select store items
+        id: items
+        shell: bash
+        env:
+          WORKLOAD_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          SERVICE_ACCOUNT: ${{ vars.CWS_SERVICE_ACCOUNT }}
+          PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+        run: |
+          release=$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease)
+          if ! jq -e '.isDraft == false and .isPrerelease == false' <<< "$release" > /dev/null; then
+            echo "::error::$RELEASE_TAG must be a published, non-prerelease release."
+            exit 1
+          fi
+          extensions=()
+          for config in */store/chrome-web-store.json; do
+            [[ -e "$config" ]] || continue
+            if [[ -n "$(jq -r '.itemId // empty' "$config")" ]]; then
+              extensions+=("${config%%/*}")
+            fi
+          done
+          if [[ ${#extensions[@]} -eq 0 ]]; then
+            echo '::notice::No extension has a Chrome Web Store itemId yet. See doc/chrome-web-store.md.'
+            exit 0
+          fi
+          if [[ -z "$WORKLOAD_IDENTITY_PROVIDER" || -z "$SERVICE_ACCOUNT" || -z "$PUBLISHER_ID" ]]; then
+            echo '::error::Set the GCP_WORKLOAD_IDENTITY_PROVIDER, CWS_SERVICE_ACCOUNT, and CWS_PUBLISHER_ID repository variables. See doc/chrome-web-store.md.'
+            exit 1
+          fi
+          echo "extensions=${extensions[*]}" >> "$GITHUB_OUTPUT"
+      - name: Authenticate to Google
+        id: auth
+        if: steps.items.outputs.extensions != ''
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.CWS_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+          access_token_lifetime: 900s
+      - name: Set up Bun
+        if: steps.items.outputs.extensions != ''
+        uses: oven-sh/setup-bun@v2
+      - name: Download and verify release ZIPs
+        if: steps.items.outputs.extensions != ''
+        shell: bash
+        run: |
+          gh release download "$RELEASE_TAG" --pattern '*.zip' --pattern SHA256SUMS --dir artifacts/release
+          (cd artifacts/release && sha256sum --check SHA256SUMS)
+      - name: Upload and submit for review
+        if: steps.items.outputs.extensions != ''
+        shell: bash
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          CWS_PUBLISHER_ID: ${{ vars.CWS_PUBLISHER_ID }}
+          EXTENSIONS: ${{ steps.items.outputs.extensions }}
+        run: |
+          version=${RELEASE_TAG#v}
+          for extension in $EXTENSIONS; do
+            item=$(jq -r '.itemId' "$extension/store/chrome-web-store.json")
+            echo "::group::$extension $version → item $item"
+            bun scripts/chrome-web-store.js --zip "artifacts/release/$extension-$version.zip" \
+              --publisher "$CWS_PUBLISHER_ID" --item "$item" --version "$version"
+            echo '::endgroup::'
+            echo "- $extension $version submitted for Chrome Web Store review (item \`$item\`)." >> "$GITHUB_STEP_SUMMARY"
+          done

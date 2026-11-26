@@ -7,4 +7,6 @@
 - Use Bun for dependencies, scripts, and tests. Run `bun run test` after implementation changes, and `bun run package` and `bun run release:verify` after packaging, manifest, or release changes.
 - Keep each source manifest at `"version": "0.0.0.1"` and `"version_name": "0.0.0-dev"`. Release tags set versions; follow [release guidelines](doc/release-guidelines.md).
   Main CI retains tested ZIPs; manual preparation promotes them into a draft. Publication stays manual.
+- Keep each extension's `PRIVACY.md` and `store/listing.md` permission justifications in sync with its manifest permissions and data handling. Store submissions follow
+  [Chrome Web Store publishing](doc/chrome-web-store.md); never store Google credentials in the repository.
 - Keep Git identity and signing configuration local to this repository. Never expose credentials or private keys.

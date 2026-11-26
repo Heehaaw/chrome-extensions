@@ -8,7 +8,8 @@
   "scripts": {
     "test": "bun test --timeout 60000",
     "package": "bash scripts/package.sh",
-    "release:verify": "bun scripts/release.js --tag v0.0.1 --output artifacts/verification"
+    "release:verify": "bun scripts/release.js --tag v0.0.1 --output artifacts/verification",
+    "store:render": "bun tab-placement/store/render.js"
   },
   "devDependencies": {
     "playwright": "1.65.1"

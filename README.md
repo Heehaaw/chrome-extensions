@@ -9,6 +9,9 @@ test tooling, packaging and release scripts, and CI.
 
 ## Install
 
+Extensions with a Chrome Web Store item install from their store link, listed in the extension's README, and update automatically. In Edge, allow extensions from other
+stores when prompted. Otherwise, install a release ZIP:
+
 1. Download the extension's ZIP, for example `tab-placement-1.0.0.zip`, from the [latest release](https://github.com/Heehaaw/chrome-extensions/releases/latest).
 2. Extract it into a folder you keep, for example `~/Extensions/tab-placement`. The browser loads the extension from that folder on every start, so do not delete it.
 3. Open `edge://extensions` (or `chrome://extensions`), turn on **Developer mode**, choose **Load unpacked**, and select the folder.
@@ -33,6 +36,7 @@ bunx playwright install chromium
 bun run test             # every extension's tests in a throwaway Chromium profile, plus release tooling tests
 bun run package          # artifacts/input/<extension>-0.0.0-dev.zip
 bun run release:verify   # promotes those ZIPs to artifacts/verification/ as v0.0.1
+bun run store:render     # regenerates Tab Placement's icons and store images
 ```
 
 During development, load `<extension>/extension/` directly with **Load unpacked** and choose **Reload** after edits.
@@ -47,6 +51,9 @@ After main CI passes, open **Actions → Prepare release → Run workflow**. Sel
 The workflow downloads the successful main build's exact ZIPs, sets the release version in each `manifest.json`, and creates a draft release with every extension ZIP and
 checksums. Review the linked draft in Releases and publish it manually as Latest. Tag pushes do not publish releases.
 
+Publishing a release submits each extension that has a Chrome Web Store item for store review. See
+[Chrome Web Store publishing](doc/chrome-web-store.md) for the one-time setup.
+
 Release tags are the version source of truth. Development builds keep `0.0.0-dev`; no version-bump commit is needed after publication. See
 [release guidelines](doc/release-guidelines.md).
 
@@ -54,7 +61,8 @@ Release tags are the version source of truth. Development builds keep `0.0.0-dev
 
 1. Create `<name>/extension/` with a Manifest V3 `manifest.json` using `"version": "0.0.0.1"` and `"version_name": "0.0.0-dev"`, and `<name>/test/*.test.js` using
    `bun:test`.
-2. Add `<name>/README.md` and a row to the table above.
+2. Add `<name>/README.md`, `<name>/PRIVACY.md`, `<name>/store/listing.md`, `<name>/store/chrome-web-store.json` with an empty `itemId`, and a row to the
+   table above. Include 16, 32, 48, and 128 px PNG icons in the manifest.
 3. Add an upload step for `artifacts/input/<name>-0.0.0-dev.zip` to [the build workflow](.github/workflows/build.yml).
 
 ## License

@@ -21,7 +21,9 @@ The extension leaves these tabs alone:
 
 ## Install
 
-Download `tab-placement-<version>.zip` from the latest release and load it unpacked, as described in the [repository README](../README.md#install).
+Store link: not published yet. Once the first version passes Chrome Web Store review, the link goes here.
+
+Or download `tab-placement-<version>.zip` from the latest release and load it unpacked, as described in the [repository README](../README.md#install).
 For development, load this folder's `extension/` directory directly.
 
 Turn off other tab-position extensions; two of them moving the same tab will fight.
@@ -35,3 +37,8 @@ The session-restore test is a regression check only: Playwright's Chromium does 
 verified by reasoning and by daily use in Edge.
 
 `EXTENSION_DIR` runs the suite against a different extension folder.
+
+## Store
+
+[`store/listing.md`](store/listing.md) holds the Chrome Web Store listing and privacy answers, and [`PRIVACY.md`](PRIVACY.md) is the privacy policy. `bun run store:render`
+regenerates the icons in `extension/icons/` and the images in `store/images/`.
