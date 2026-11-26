@@ -1,7 +1,8 @@
 # Tab Placement
 
 A Manifest V3 extension for Microsoft Edge and other Chromium browsers. It opens new tabs next to
-the current tab and inside the current tab's group, without reordering tabs the browser restores.
+the current tab and inside the current tab's group, without reordering tabs the browser restores,
+and names new tab groups after the Linear or GitLab ticket their tabs show.
 
 ## Behaviour
 
@@ -19,6 +20,18 @@ The extension leaves these tabs alone:
   These cover session restore and "Reopen closed window".
 - A tab reopened with "Reopen closed tab", recognised by its URL and original index.
 
+## Group names
+
+When you create a tab group, it is named after the ticket ID its tabs show, such as `EXE-311`:
+
+- Linear tabs: the issue ID from a `linear.app/<workspace>/issue/<ID>/…` address, otherwise the first ticket ID in the title.
+- GitLab tabs (titles ending in `· GitLab`, or a `gitlab.` host): the first ticket ID in the title, such as a merge request's `EXE-257: …` or a lowercase branch
+  name like `feat/exe-311-fix`.
+- Linear wins when Linear and GitLab tabs show different tickets; otherwise the first tab in strip order wins.
+
+Tabs from other sites are ignored. The name is set once, a second after the group is created, and only if the group has no name by then other than Edge's
+default `Group <n>`. Tabs joining, leaving, or loading later never rename a group, and a group whose tabs show no ticket stays unnamed.
+
 ## Install
 
 Store link: not published yet. Once the first version passes Chrome Web Store review, the link goes here.
@@ -31,7 +44,8 @@ Turn off other tab-position extensions; two of them moving the same tab will fig
 ## Test
 
 From the repository root, `bun run test` runs [the end-to-end tests](test/placement.test.js) in a throwaway Chromium profile. They cover placement next to the current tab,
-joining a group in its middle and at its end, pinned tabs, a start mid-session, background tabs, "Reopen closed tab", and session restore.
+joining a group in its middle and at its end, pinned tabs, a start mid-session, background tabs, "Reopen closed tab", session restore, and group naming.
+[Unit tests](test/tickets.test.js) cover ticket parsing with Linear and GitLab title formats.
 
 Tabs created through `chrome.tabs` report no opener, but a real Cmd/Ctrl+T tab has the current tab as its opener. On macOS,
 `TAB_PLACEMENT_KEYBOARD=1 bun test tab-placement/test/keyboard.test.js` sends real Cmd+T to a visible Chromium window. It needs Accessibility permission for the terminal

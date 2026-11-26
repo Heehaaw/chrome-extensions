@@ -26,8 +26,10 @@ beforeAll(() => {
     hostname: "127.0.0.1",
     port: 0,
     fetch: (req) => {
-      const name = new URL(req.url).pathname.slice(1);
-      return new Response(`<title>${name}</title>${name}`, { headers: { "content-type": "text/html" } });
+      const url = new URL(req.url);
+      const name = url.pathname.slice(1);
+      const title = Bun.escapeHTML(url.searchParams.get("title") ?? name);
+      return new Response(`<title>${title}</title>${name}`, { headers: { "content-type": "text/html; charset=utf-8" } });
     },
   });
   baseUrl = `http://127.0.0.1:${server.port}`;
@@ -229,5 +231,47 @@ test("session restore keeps tab order and groups", async () => {
     expect(restored).toEqual(expected);
   } finally {
     await second.context.close();
+  }
+});
+
+test("a new tab group is named once after its tabs' ticket, and only when the user has not named it", async () => {
+  const { context, worker } = await launch(tempProfile());
+  try {
+    const mergeRequest = (title) => `${baseUrl}/mr?title=${encodeURIComponent(`${title} · Merge requests · acme / service · GitLab`)}`;
+    const groups = await worker.evaluate(
+      async (urls) => {
+        const ids = [];
+        for (const url of urls) ids.push((await chrome.tabs.create({ url, active: false })).id);
+        const ticketGroup = await chrome.tabs.group({ tabIds: [ids[0], ids[1]] });
+        const namedGroup = await chrome.tabs.group({ tabIds: [ids[2]] });
+        await chrome.tabGroups.update(namedGroup, { title: "Research" });
+        const plainGroup = await chrome.tabs.group({ tabIds: [ids[3]] });
+        // Edge names every new group "Group <n>" right after creating it.
+        await chrome.tabGroups.update(ticketGroup, { title: "Group 7" });
+        return { ticketGroup, namedGroup, plainGroup, later: ids[4] };
+      },
+      [
+        `${baseUrl}/notes`,
+        mergeRequest("EXE-257: Wire scenario replay (!1852)"),
+        mergeRequest("EXE-311: Start NATS earlier (!1866)"),
+        `${baseUrl}/plain`,
+        mergeRequest("EXE-307: Add PL manifests (!9242)"),
+      ],
+    );
+    const titles = () =>
+      worker.evaluate(
+        async (ids) => Promise.all([ids.ticketGroup, ids.namedGroup, ids.plainGroup].map(async (id) => (await chrome.tabGroups.get(id)).title)),
+        groups,
+      );
+
+    for (let attempt = 0; attempt < 20 && (await titles())[0] === "Group 7"; attempt++) await sleep(200);
+    expect(await titles()).toEqual(["EXE-257", "Research", ""]);
+
+    // A ticket tab joining an existing group later does not name it.
+    await worker.evaluate(({ later, plainGroup }) => chrome.tabs.group({ groupId: plainGroup, tabIds: later }), groups);
+    await sleep(1500);
+    expect(await titles()).toEqual(["EXE-257", "Research", ""]);
+  } finally {
+    await context.close();
   }
 });

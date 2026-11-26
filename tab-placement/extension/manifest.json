@@ -3,7 +3,7 @@
   "name": "Tab Placement",
   "version": "0.0.0.1",
   "version_name": "0.0.0-dev",
-  "description": "Opens new tabs next to the current tab and inside its tab group, without reordering restored tabs.",
+  "description": "Opens new tabs next to the current tab and inside its tab group, and names tab groups after their Linear or GitLab ticket.",
   "minimum_chrome_version": "120",
   "icons": {
     "16": "icons/icon-16.png",
@@ -11,7 +11,7 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["tabs", "sessions", "storage"],
+  "permissions": ["tabs", "tabGroups", "sessions", "storage"],
   "background": {
     "service_worker": "service_worker.js"
   }

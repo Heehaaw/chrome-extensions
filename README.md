@@ -5,7 +5,7 @@ test tooling, packaging and release scripts, and CI.
 
 | Extension | Purpose |
 | --- | --- |
-| [Tab Placement](tab-placement/) | Open new tabs next to the current tab and inside its tab group, without reordering restored tabs. |
+| [Tab Placement](tab-placement/) | Open new tabs next to the current tab and inside its tab group, without reordering restored tabs, and name new tab groups after their Linear or GitLab ticket. |
 
 ## Install
 

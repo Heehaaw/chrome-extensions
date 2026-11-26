@@ -2,8 +2,8 @@
 
 Last updated: 2026-11-26
 
-Tab Placement moves newly opened tabs next to the current tab and into its tab group. It does not collect, transmit, sell, or share any data. It has no server, analytics, or
-remote code.
+Tab Placement moves newly opened tabs next to the current tab and into its tab group, and names tab groups after the Linear or GitLab ticket their tabs show. It does
+not collect, transmit, sell, or share any data. It has no server, analytics, or remote code.
 
 ## Data the extension handles on your device
 
@@ -11,9 +11,10 @@ To place tabs, the extension reads, in the browser on your device only:
 
 - **Tab details:** each tab's position, window, pinned state, tab group, and the address (URL) of a newly opened tab.
 - **Recently closed tabs:** the address and former position of tabs listed in the browser's recently closed list.
+- **New tab groups:** the address and title of the tabs in a newly created tab group, and the group's name.
 
 It compares a new tab's address and position with the recently closed list only to recognise **Reopen closed tab**, so a reopened tab returns to its old position instead of
-being moved.
+being moved. It reads a new group's tab addresses and titles once, only to find a Linear or GitLab ticket ID and set it as the group's name.
 
 ## Storage
 
@@ -29,6 +30,7 @@ device.
 ## Permissions
 
 - `tabs`: read the details listed above and move or group new tabs.
+- `tabGroups`: read a new group's name and name it.
 - `sessions`: read the recently closed list.
 - `storage`: keep the session data listed above.
 

@@ -1,6 +1,9 @@
 // Tab Placement: moves a new foreground tab next to the tab that was active before it, and into
 // that tab's group. Tabs the browser positions itself (session restore, "Reopen closed tab",
 // link-opened tabs, background tabs) are left alone, so restored windows keep their order.
+// It also names each new tab group after the Linear or GitLab ticket its tabs show.
+
+importScripts("tickets.js");
 
 // Session restore and "Reopen closed window" create tabs in bursts right after the browser or a
 // window appears; nothing is moved inside these windows.
@@ -11,7 +14,14 @@ const WINDOW_GRACE_MS = 2000;
 // so entries are matched for a short time after they leave the list.
 const REOPEN_MATCH_MS = 5000;
 
-const NO_GROUP = -1; // chrome.tabGroups.TAB_GROUP_ID_NONE, without requiring the tabGroups permission.
+const NO_GROUP = chrome.tabGroups.TAB_GROUP_ID_NONE;
+
+// Grouping tabs creates the group before adding them, and Edge names a new group "Group <n>"
+// about 300 ms later; naming waits until both have happened.
+const GROUP_NAMING_DELAY_MS = 1000;
+
+// Edge's default name for a new group (English UI). It counts as unnamed.
+const DEFAULT_GROUP_TITLE = /^Group \d+$/;
 
 // All state lives in storage.session: it survives service-worker restarts and is cleared when
 // the browser quits, which is exactly the lifetime of window and activation history.
@@ -52,6 +62,11 @@ chrome.sessions.onChanged.addListener(() => enqueue(refreshRecentlyClosed));
 chrome.tabs.onCreated.addListener((tab) => {
   const createdAt = Date.now();
   enqueue(() => placeNewTab(tab, createdAt));
+});
+
+// A pending timer keeps the service worker alive, so the delay needs no persisted state.
+chrome.tabGroups.onCreated.addListener((group) => {
+  setTimeout(() => enqueue(() => nameNewGroup(group.id)), GROUP_NAMING_DELAY_MS);
 });
 
 async function startSession(now) {
@@ -161,4 +176,15 @@ async function wasRecentlyClosed(tab, now) {
 
 function sameEntry(a, b) {
   return a.url === b.url && a.index === b.index;
+}
+
+// Names a group once, shortly after it is created, so its tabs have joined it and started loading.
+// Later changes to the group or its tabs never rename it, and a name set in the meantime (by the
+// user or by session restore) is kept, except Edge's default name.
+async function nameNewGroup(groupId) {
+  const group = await chrome.tabGroups.get(groupId).catch(() => undefined);
+  if (!group || (group.title && !DEFAULT_GROUP_TITLE.test(group.title))) return;
+
+  const ticket = groupTicket(await chrome.tabs.query({ groupId }));
+  if (ticket) await chrome.tabGroups.update(groupId, { title: ticket });
 }
