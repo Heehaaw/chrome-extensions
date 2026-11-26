@@ -1,6 +1,7 @@
 // End-to-end tests: loads the unpacked extension into a throwaway Chromium profile and drives tabs
-// through the extension's own chrome.* APIs. A tab created there has no opener and is appended to
-// the end of the strip, which is how Edge creates a Cmd+T tab.
+// through the extension's own chrome.* APIs. A tab created there is appended to the end of the
+// strip like a Cmd/Ctrl+T tab, but its onCreated event carries no opener; keyboard.test.js covers
+// real Cmd+T on macOS.
 //
 // CHROMIUM_PATH optionally points at a Chromium or Chrome for Testing binary; branded Chrome and
 // Edge ignore --load-extension.
@@ -142,6 +143,27 @@ test("new tab from a pinned tab opens right after the pinned tabs", async () => 
     await newForegroundTab(worker, "new");
 
     expect(await strip(worker)).toEqual(["a", "new", "b", "c"]);
+  } finally {
+    await context.close();
+  }
+});
+
+test("new tab is placed when the extension starts mid-session, before any tab switch", async () => {
+  const { context, worker } = await launch(tempProfile());
+  try {
+    await skipGracePeriods(worker);
+    const tabs = await openTabs(worker, ["a", "b", "c"]);
+    await activate(worker, tabs.b);
+
+    // Installing, reloading, or updating clears storage.session and runs the startup handler
+    // while windows are already open. startSession is the service worker's global handler.
+    await worker.evaluate(async () => {
+      await chrome.storage.session.clear();
+      await startSession(0);
+    });
+    await newForegroundTab(worker, "new");
+
+    expect(await strip(worker)).toEqual(["a", "b", "new", "c"]);
   } finally {
     await context.close();
   }

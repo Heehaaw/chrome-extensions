@@ -31,7 +31,11 @@ Turn off other tab-position extensions; two of them moving the same tab will fig
 ## Test
 
 From the repository root, `bun run test` runs [the end-to-end tests](test/placement.test.js) in a throwaway Chromium profile. They cover placement next to the current tab,
-joining a group in its middle and at its end, pinned tabs, background tabs, "Reopen closed tab", and session restore.
+joining a group in its middle and at its end, pinned tabs, a start mid-session, background tabs, "Reopen closed tab", and session restore.
+
+Tabs created through `chrome.tabs` report no opener, but a real Cmd/Ctrl+T tab has the current tab as its opener. On macOS,
+`TAB_PLACEMENT_KEYBOARD=1 bun test tab-placement/test/keyboard.test.js` sends real Cmd+T to a visible Chromium window. It needs Accessibility permission for the terminal
+and is skipped otherwise.
 
 The session-restore test is a regression check only: Playwright's Chromium does not reproduce Edge's restore reordering even with a naive tab mover, so the restore guards are
 verified by reasoning and by daily use in Edge.

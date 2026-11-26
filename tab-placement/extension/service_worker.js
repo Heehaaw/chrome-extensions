@@ -56,7 +56,16 @@ chrome.tabs.onCreated.addListener((tab) => {
 
 async function startSession(now) {
   await chrome.storage.session.set({ [SESSION_STARTED_KEY]: now });
+  await recordActiveTabs();
   await refreshRecentlyClosed();
+}
+
+// Windows already open when the extension is installed, reloaded, or updated get no onActivated
+// until the user switches tabs; recording their active tabs lets the first new tab be placed.
+async function recordActiveTabs() {
+  for (const tab of await chrome.tabs.query({ active: true })) {
+    await updateWindow(tab.windowId, (record) => (record.activeTabId === undefined ? { ...record, activeTabId: tab.id } : record));
+  }
 }
 
 async function updateWindow(windowId, update) {
@@ -66,9 +75,8 @@ async function updateWindow(windowId, update) {
 }
 
 async function placeNewTab(tab, createdAt) {
-  // The browser already opens link tabs next to their opener and inside its group, and
-  // background tabs come from bulk actions (restore, "Open all") that must keep their order.
-  if (!tab.active || tab.pinned || tab.openerTabId !== undefined) return;
+  // Background tabs come from links or bulk actions (restore, "Open all") that must keep their order.
+  if (!tab.active || tab.pinned) return;
   if (await isWithinStartupGrace(createdAt)) return;
 
   const { [windowKey(tab.windowId)]: record } = await chrome.storage.session.get(windowKey(tab.windowId));
@@ -78,6 +86,11 @@ async function placeNewTab(tab, createdAt) {
   // onActivated for the new tab may already have been recorded; the anchor is the tab before it.
   const anchorId = record.activeTabId === tab.id ? record.previousTabId : record.activeTabId;
   if (anchorId === undefined || anchorId === tab.id) return;
+
+  // Cmd/Ctrl+T and the new tab button make the current tab the opener of a tab appended at the end.
+  // A foreground link tab has the same opener but the browser puts it right after it, so the
+  // index check below leaves it alone. Any other opener is a page in another tab.
+  if (tab.openerTabId !== undefined && tab.openerTabId !== anchorId) return;
 
   const window = await chrome.windows.get(tab.windowId, { populate: true });
   if (window.type !== "normal") return;
