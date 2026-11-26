@@ -1,0 +1,45 @@
+name: Build, test, and package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium for extension tests
+        run: npx playwright install --with-deps chromium
+      - name: Test extensions in Chromium
+        run: npm test
+      - name: Package extensions
+        run: npm run package
+      # One step per extension: archive: false uploads exactly one file, and the downloaded
+      # artifact is the extension ZIP itself rather than a ZIP wrapped in another ZIP.
+      - name: Upload installable Tab Placement ZIP
+        uses: actions/upload-artifact@v7
+        with:
+          path: artifacts/tab-placement-*.zip
+          archive: false
+          retention-days: 90
+          if-no-files-found: error

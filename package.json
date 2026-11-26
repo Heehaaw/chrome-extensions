@@ -1,0 +1,16 @@
+{
+  "name": "chrome-extensions",
+  "private": true,
+  "description": "Chromium browser extensions for Microsoft Edge and Chrome.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"*/test/*.test.cjs\"",
+    "package": "scripts/package.sh"
+  },
+  "devDependencies": {
+    "playwright": "1.65.1"
+  }
+}

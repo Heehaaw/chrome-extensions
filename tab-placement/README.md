@@ -1,0 +1,37 @@
+# Tab Placement
+
+A Manifest V3 extension for Microsoft Edge and other Chromium browsers. It opens new tabs next to
+the current tab and inside the current tab's group, without reordering tabs the browser restores.
+
+## Behaviour
+
+A new foreground tab that the browser appended to the end of the window (Cmd+T, the new-tab
+button, or a link from another app) is moved directly after the tab that was active before it.
+If that tab is in a group, the new tab joins the group. If it is pinned, the new tab goes right
+after the pinned tabs.
+
+The extension leaves these tabs alone:
+
+- Tabs opened from a link in a page: the browser already places them next to their opener and in
+  its group.
+- Background tabs, such as those from "Open all" or session restore.
+- Tabs created in the first 5 s after the browser starts, or in the first 2 s of a new window.
+  These cover session restore and "Reopen closed window".
+- A tab reopened with "Reopen closed tab", recognised by its URL and original index.
+
+## Install
+
+Download the `tab-placement-<version>.zip` build artifact and load it unpacked, as described in the [repository README](../README.md#install-from-a-build-artifact).
+For development, load this folder's `extension/` directory directly.
+
+Turn off other tab-position extensions; two of them moving the same tab will fight.
+
+## Test
+
+From the repository root, `npm test` runs [the end-to-end tests](test/placement.test.cjs) in a throwaway Chromium profile. They cover placement next to the current tab,
+joining a group in its middle and at its end, pinned tabs, background tabs, "Reopen closed tab", and session restore.
+
+The session-restore test is a regression check only: Playwright's Chromium does not reproduce Edge's restore reordering even with a naive tab mover, so the restore guards are
+verified by reasoning and by daily use in Edge.
+
+`EXTENSION_DIR` runs the suite against a different extension folder.

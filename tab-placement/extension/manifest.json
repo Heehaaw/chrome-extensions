@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Placement",
+  "version": "1.0.0",
+  "description": "Opens new tabs next to the current tab and inside its tab group, without reordering restored tabs.",
+  "minimum_chrome_version": "120",
+  "permissions": ["tabs", "sessions", "storage"],
+  "background": {
+    "service_worker": "service_worker.js"
+  }
+}
