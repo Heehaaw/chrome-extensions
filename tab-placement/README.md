@@ -29,8 +29,10 @@ When you create a tab group, it is named after the ticket ID its tabs show, such
   name like `feat/exe-311-fix`.
 - Linear wins when Linear and GitLab tabs show different tickets; otherwise the first tab in strip order wins.
 
-Tabs from other sites are ignored. The name is set once, a second after the group is created, and only if the group has no name by then other than Edge's
-default `Group <n>`. Tabs joining, leaving, or loading later never rename a group, and a group whose tabs show no ticket stays unnamed.
+Tabs from other sites are ignored. The name is set a second after the group is created. For the first 10 seconds, the ticket name replaces any name Edge
+gives the group, either its default `Group <n>` or an AI-suggested name such as "Computer Programming". A name you type in that time is kept, but a pasted one
+is replaced. After that, nothing renames the group: not tabs joining, leaving, or loading. A group whose tabs show no ticket keeps Edge's name, and a group
+that already has a name when it appears, such as a restored one, is left alone.
 
 ## Install
 

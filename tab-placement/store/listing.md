@@ -55,7 +55,7 @@ Upload `tab-placement-<version>.zip` from the latest [GitHub release](https://gi
 | Permission | Justification |
 | --- | --- |
 | `tabs` | Reads each new tab's position, window, pinned state, group, and URL so it can move the tab next to the current tab and add it to that tab's group. The URL is compared with the recently closed list to recognise Reopen closed tab. Reads the URL and title of the tabs in a newly created group to find a Linear or GitLab ticket ID. |
-| `tabGroups` | Names a newly created, unnamed tab group after the ticket ID its tabs show. |
+| `tabGroups` | Names a newly created tab group after the ticket ID its tabs show, replacing the browser's default or suggested name. |
 | `sessions` | Reads the recently closed tabs list so a tab restored with Reopen closed tab returns to its former position instead of being moved. |
 | `storage` | Keeps the active tab history of each window in chrome.storage.session, which survives service-worker restarts and is cleared when the browser closes. |
 

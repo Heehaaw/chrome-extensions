@@ -234,7 +234,7 @@ test("session restore keeps tab order and groups", async () => {
   }
 });
 
-test("a new tab group is named once after its tabs' ticket, and only when the user has not named it", async () => {
+test("a new tab group is named once after its tabs' ticket, keeps it over Edge's names, and keeps a typed name", async () => {
   const { context, worker } = await launch(tempProfile());
   try {
     const mergeRequest = (title) => `${baseUrl}/mr?title=${encodeURIComponent(`${title} · Merge requests · acme / service · GitLab`)}`;
@@ -244,7 +244,10 @@ test("a new tab group is named once after its tabs' ticket, and only when the us
         for (const url of urls) ids.push((await chrome.tabs.create({ url, active: false })).id);
         const ticketGroup = await chrome.tabs.group({ tabIds: [ids[0], ids[1]] });
         const namedGroup = await chrome.tabs.group({ tabIds: [ids[2]] });
-        await chrome.tabGroups.update(namedGroup, { title: "Research" });
+        // The group's name box updates the name on every keystroke.
+        for (let length = 1; length <= "Research".length; length++) {
+          await chrome.tabGroups.update(namedGroup, { title: "Research".slice(0, length) });
+        }
         const plainGroup = await chrome.tabs.group({ tabIds: [ids[3]] });
         // Edge names every new group "Group <n>" right after creating it.
         await chrome.tabGroups.update(ticketGroup, { title: "Group 7" });
@@ -265,6 +268,11 @@ test("a new tab group is named once after its tabs' ticket, and only when the us
       );
 
     for (let attempt = 0; attempt < 20 && (await titles())[0] === "Group 7"; attempt++) await sleep(200);
+    expect(await titles()).toEqual(["EXE-257", "Research", ""]);
+
+    // Edge's tab organization service may suggest a name after the ticket name is set.
+    await worker.evaluate(({ ticketGroup }) => chrome.tabGroups.update(ticketGroup, { title: "Computer Programming" }), groups);
+    for (let attempt = 0; attempt < 20 && (await titles())[0] !== "EXE-257"; attempt++) await sleep(100);
     expect(await titles()).toEqual(["EXE-257", "Research", ""]);
 
     // A ticket tab joining an existing group later does not name it.

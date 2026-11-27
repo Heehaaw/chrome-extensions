@@ -23,6 +23,16 @@ const GROUP_NAMING_DELAY_MS = 1000;
 // Edge's default name for a new group (English UI). It counts as unnamed.
 const DEFAULT_GROUP_TITLE = /^Group \d+$/;
 
+// Edge's tab organization service also names new groups from their tabs ("Computer Programming"),
+// sometimes after the ticket name is set. Until this long after creation, any such name is
+// replaced with the ticket again.
+const GROUP_CLAIM_MS = 10000;
+
+// Groups that were created unnamed in the last GROUP_CLAIM_MS and whose name the extension still
+// controls, by group id: { title, ticket }. Losing it in a service-worker restart only ends claims
+// early.
+const claimedGroups = new Map();
+
 // All state lives in storage.session: it survives service-worker restarts and is cleared when
 // the browser quits, which is exactly the lifetime of window and activation history.
 const SESSION_STARTED_KEY = "sessionStartedAt";
@@ -66,8 +76,33 @@ chrome.tabs.onCreated.addListener((tab) => {
 
 // A pending timer keeps the service worker alive, so the delay needs no persisted state.
 chrome.tabGroups.onCreated.addListener((group) => {
+  // A group that already has a name was restored or moved from another window.
+  if (group.title && !DEFAULT_GROUP_TITLE.test(group.title)) return;
+
+  claimedGroups.set(group.id, { title: group.title, ticket: undefined });
   setTimeout(() => enqueue(() => nameNewGroup(group.id)), GROUP_NAMING_DELAY_MS);
+  setTimeout(() => claimedGroups.delete(group.id), GROUP_CLAIM_MS);
 });
+
+chrome.tabGroups.onUpdated.addListener((group) => {
+  const claim = claimedGroups.get(group.id);
+  if (!claim || group.title === claim.title) return;
+
+  const previousTitle = claim.title;
+  claim.title = group.title;
+  if (group.title === claim.ticket) return;
+
+  // The user is naming the group: their name is kept.
+  if (looksTyped(previousTitle, group.title)) {
+    claimedGroups.delete(group.id);
+    return;
+  }
+
+  // Edge's default or suggested name replaced the ticket name.
+  if (claim.ticket) enqueue(() => chrome.tabGroups.update(group.id, { title: claim.ticket }).catch(() => undefined));
+});
+
+chrome.tabGroups.onRemoved.addListener((group) => claimedGroups.delete(group.id));
 
 async function startSession(now) {
   await chrome.storage.session.set({ [SESSION_STARTED_KEY]: now });
@@ -178,13 +213,33 @@ function sameEntry(a, b) {
   return a.url === b.url && a.index === b.index;
 }
 
-// Names a group once, shortly after it is created, so its tabs have joined it and started loading.
-// Later changes to the group or its tabs never rename it, and a name set in the meantime (by the
-// user or by session restore) is kept, except Edge's default name.
+// Names a new group once, shortly after it is created, so its tabs have joined it and started
+// loading. Later changes to its tabs never rename it, and a name the user typed in the meantime is
+// kept.
 async function nameNewGroup(groupId) {
-  const group = await chrome.tabGroups.get(groupId).catch(() => undefined);
-  if (!group || (group.title && !DEFAULT_GROUP_TITLE.test(group.title))) return;
+  const claim = claimedGroups.get(groupId);
+  if (!claim) return;
 
   const ticket = groupTicket(await chrome.tabs.query({ groupId }));
-  if (ticket) await chrome.tabGroups.update(groupId, { title: ticket });
+  if (!ticket) {
+    claimedGroups.delete(groupId);
+    return;
+  }
+
+  claim.ticket = ticket;
+  await chrome.tabGroups.update(groupId, { title: ticket }).catch(() => undefined);
+}
+
+// The group's name box updates the name on every keystroke, so typing changes one character at a
+// time, and typing over a selected name starts from one character or none. Browser-set names
+// replace the whole name at once. A pasted name looks like a browser-set name.
+function looksTyped(before, after) {
+  if (after.length <= 1) return true;
+
+  const [shorter, longer] = before.length < after.length ? [before, after] : [after, before];
+  if (longer.length - shorter.length !== 1) return false;
+  for (let i = 0; i < longer.length; i++) {
+    if (longer.slice(0, i) + longer.slice(i + 1) === shorter) return true;
+  }
+  return false;
 }
